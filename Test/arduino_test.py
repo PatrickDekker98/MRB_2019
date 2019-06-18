@@ -9,7 +9,7 @@ def send_fan(value, serial_com):
     @param value An integer containing the new x value.
     @param serial_com The serial communication you wan to send to.
     """
-    data = "X " + str(int(value)) + "\n"
+    data = "F " + str(int(value)) + "\n"
     send_serial(data, serial_com)
 
 
@@ -19,7 +19,7 @@ def send_sound(value, serial):
     @param value An integer containing the new y value.
     @param serial_com The serial communication you wan to send to.
     """
-    data = "Y " + str(int(value))  + "\n"
+    data = "S " + str(int(value))  + "\n"
     send_serial(data, arduino)
 
 
