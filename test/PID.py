@@ -22,9 +22,4 @@ class PID:
     def Calc(self, error):
         return self.Calc_P(error) + self.Calc_I(error) + self.Calc_D(error)
 
-    def resetError():
-        self.Eold = 0
-        self.Etotaal = 0
-        self.Edelta = 0
-
 

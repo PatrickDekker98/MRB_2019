@@ -31,19 +31,9 @@ def send_serial(data, serial_com):
     """
 
     data = data.encode("ascii")
-    arduino.write(data)
+    serial_com.write(data)
 
 
 
 
-arduino = serial.Serial("COM8", 115200)
-
-
-
-while True:
-    for i in range(0,255):
-        send_fan(i,arduino)
-        send_sound(i,arduino)
-        time.sleep(0.1)
-        print(i)
 

@@ -11,9 +11,9 @@ def nothing(x):
 cv2.namedWindow("Trackbars")
 cv2.createTrackbar("L-H", "Trackbars", 10,180, nothing)
 cv2.createTrackbar("L-S", "Trackbars", 102, 255, nothing)
-cv2.createTrackbar("L-V", "Trackbars", 200,255, nothing)
+cv2.createTrackbar("L-V", "Trackbars", 160,255, nothing)
 cv2.createTrackbar("H-H", "Trackbars", 25,180, nothing)
-cv2.createTrackbar("H-S", "Trackbars", 241, 255, nothing)
+cv2.createTrackbar("H-S", "Trackbars", 255, 255, nothing)
 cv2.createTrackbar("H-V", "Trackbars", 255,255, nothing)
 cv2.createTrackbar("Kernal", "Trackbars", 2,10, nothing)
 
@@ -23,7 +23,9 @@ kernel_dilation_erosion = np.ones((5,5), np.int8)
 
 ball_height = 0
 ball_aim = 0
-PID_controller = PID(10,0,0)
+max_val = 0
+min_val = 1000000
+PID_controller = PID(10, 0,20)
 
 arduino = serial.Serial("/dev/ttyUSB0", 115200)
 
@@ -48,23 +50,22 @@ while True:
 
     mask_object_two = cv2.inRange(hsv, lower_range1, upper_range1)
     mask = cv2.inRange(hsv, lower_range, upper_range)
-    mask = cv2.erode(mask, kernel)
+    #mask = cv2.erode(mask, kernel)
 
 
-    closing = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_dilation_erosion)
-    opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel_dilation_erosion)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_dilation_erosion)
+    nask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_dilation_erosion)
 
     closing_object_two = cv2.morphologyEx(mask_object_two, cv2.MORPH_CLOSE, kernel_dilation_erosion)
     opening_object_two = cv2.morphologyEx(closing_object_two, cv2.MORPH_OPEN, kernel_dilation_erosion)
 
-    circles = cv2.HoughCircles(opening, cv2.HOUGH_GRADIENT,2,20 ,param1=11,param2=11,minRadius=0,maxRadius=0)
+    circles = cv2.HoughCircles(mask, cv2.HOUGH_GRADIENT,2,20 ,param1=11,param2=11,minRadius=0,maxRadius=0)
     if circles is not None:
         circles = np.uint16(np.around(circles))
         i = circles[0][0]
         if (i[1] != 0 or i[1] != frame.shape[0]):
             ball_height = i[1]
             cv2.circle(frame, (i[0], i[1]), i[2], (0,255,0), 2)
-            #cv2.circle(frame, (i[0], i[1]), 2, (0, 0, 255), 3)
             cv2.line(frame, (0, i[1]), (frame.shape[1], i[1]),(0,255,0), 3)
         
     #contour detecion
@@ -86,15 +87,30 @@ while True:
             break
 
     cv2.imshow("Frame", frame)
-    #cv2.imshow("mask", closing)
+    cv2.imshow("mask", mask)
     cv2.imshow("mask_object_two", opening_object_two)
-    error = ball_height - ball_aim + frame.shape[0]
+    error = ball_height/frame.shape[0] - ball_aim / frame.shape[0]
+
+
     val = PID_controller.Calc(error)
-    val = int(((val / frame.shape[0]) / 10) *255)
+#    if val < min_val:
+#        min_val = val
+#    elif val > max_val:
+#        max_val = val
+
+#    if val == min_val:
+#        val = 0
+#    else :
+#        val = int(((val - min_val) / max_val) * 255)
+
+    val = val * 255
+
+    print(val)
     if val > 255:
         val = 255
-    print(val)
-    send_fan( val, arduino)
+    elif val < 0:
+        val = 0
+    send_fan( int(val), arduino)
 
     key = cv2.waitKey(60)
     if key == 27:
