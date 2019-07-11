@@ -20,7 +20,7 @@ def send_sound(value, serial):
     @param serial_com The serial communication you wan to send to.
     """
     data = "S " + str(int(value))  + "\n"
-    send_serial(data, arduino)
+    send_serial(data, serial)
 
 
 def send_serial(data, serial_com):

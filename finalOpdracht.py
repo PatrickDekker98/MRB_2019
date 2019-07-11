@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from PID import PID
 from arduino_test import send_fan
+from arduino_test import send_sound
 import serial
 
 def nothing(x):
@@ -16,8 +17,11 @@ cv2.createTrackbar("H-H", "Trackbars", 25,180, nothing)
 cv2.createTrackbar("H-S", "Trackbars", 255, 255, nothing)
 cv2.createTrackbar("H-V", "Trackbars", 255,255, nothing)
 cv2.createTrackbar("Kernal", "Trackbars", 2,10, nothing)
+cv2.createTrackbar("KP", "Trackbars", 1, 255, nothing)
+cv2.createTrackbar("KI", "Trackbars", 1,255, nothing)
+cv2.createTrackbar("KD", "Trackbars", 1,255, nothing)
 
-camera = cv2.VideoCapture(0)
+camera = cv2.VideoCapture(2)
 
 kernel_dilation_erosion = np.ones((5,5), np.int8)
 
@@ -25,7 +29,7 @@ ball_height = 0
 ball_aim = 0
 max_val = 0
 min_val = 1000000
-PID_controller = PID(10, 0,20)
+PID_controller = PID(0, 0, 0)
 
 arduino = serial.Serial("/dev/ttyUSB0", 115200)
 
@@ -39,13 +43,16 @@ while True:
     H_H = cv2.getTrackbarPos("H-H","Trackbars")
     H_S = cv2.getTrackbarPos("H-S", "Trackbars")
     H_V = cv2.getTrackbarPos("H-V", "Trackbars")
+    KP = cv2.getTrackbarPos("KP","Trackbars")
+    KI = cv2.getTrackbarPos("KI", "Trackbars")
+    KD = cv2.getTrackbarPos("KD", "Trackbars")
 
     Kernal_varable= cv2.getTrackbarPos("Kernal", "Trackbars")
 
     lower_range = np.array([L_H, L_S, L_V])
     upper_range = np.array([H_H, H_S, H_V])
-    lower_range1 = np.array([175, 100, 20])
-    upper_range1 = np.array([255,255,255])
+    lower_range1 = np.array([25, 52, 72])
+    upper_range1 = np.array([102,255,255])
     kernel = np.ones((Kernal_varable, Kernal_varable), np.uint8)
 
     mask_object_two = cv2.inRange(hsv, lower_range1, upper_range1)
@@ -54,7 +61,7 @@ while True:
 
 
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_dilation_erosion)
-    nask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_dilation_erosion)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_dilation_erosion)
 
     closing_object_two = cv2.morphologyEx(mask_object_two, cv2.MORPH_CLOSE, kernel_dilation_erosion)
     opening_object_two = cv2.morphologyEx(closing_object_two, cv2.MORPH_OPEN, kernel_dilation_erosion)
@@ -63,7 +70,7 @@ while True:
     if circles is not None:
         circles = np.uint16(np.around(circles))
         i = circles[0][0]
-        if (i[1] != 0 or i[1] != frame.shape[0]):
+        if (i[1] != 0 and i[1] != frame.shape[0]):
             ball_height = i[1]
             cv2.circle(frame, (i[0], i[1]), i[2], (0,255,0), 2)
             cv2.line(frame, (0, i[1]), (frame.shape[1], i[1]),(0,255,0), 3)
@@ -91,26 +98,22 @@ while True:
     cv2.imshow("mask_object_two", opening_object_two)
     error = ball_height/frame.shape[0] - ball_aim / frame.shape[0]
 
+    PID_controller.set_Kp(KP)
+    PID_controller.set_Ki(KI*0.001)
+    PID_controller.set_Kd(KD)
 
+    print("error: ", error)
     val = PID_controller.Calc(error)
-#    if val < min_val:
-#        min_val = val
-#    elif val > max_val:
-#        max_val = val
+    val = val + 180
 
-#    if val == min_val:
-#        val = 0
-#    else :
-#        val = int(((val - min_val) / max_val) * 255)
-
-    val = val * 255
-
-    print(val)
     if val > 255:
         val = 255
-    elif val < 0:
-        val = 0
+    elif val < 160:
+        val = 160
+
+    print("val: ", val)
     send_fan( int(val), arduino)
+    send_sound(int(ball_height / 2), arduino)
 
     key = cv2.waitKey(60)
     if key == 27:
